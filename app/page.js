@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import { useRouter } from "next/navigation";
+import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { getFirebaseAuth } from "../lib/firebase";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -20,8 +22,16 @@ export default function LoginPage() {
 
     try {
       const auth = getFirebaseAuth();
-      await signInWithEmailAndPassword(auth, email, password);
+      const credential = await signInWithEmailAndPassword(auth, email, password);
+
+      if (credential.user.email?.toLowerCase() !== process.env.NEXT_PUBLIC_ADMIN_EMAIL?.toLowerCase()) {
+        await signOut(auth);
+        setMessage("This account does not have admin access.");
+        return;
+      }
+
       setMessage("Login successful!");
+      router.replace("/dashboard");
     } catch (error) {
       if (error.code === "auth/invalid-credential") {
         setMessage("Email or password is incorrect.");

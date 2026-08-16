@@ -1,0 +1,428 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && request.auth.token.email == 'milesnantonfloat@gmail.com';
+    }
+
+    match /users/{userId} {
+      function isOwner() {
+        return request.auth != null
+          && request.auth.uid == userId;
+      }
+
+      function isValidName() {
+        return request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100;
+      }
+
+      function isValidBio() {
+        return request.resource.data.bio is string
+          && request.resource.data.bio.size() > 0
+          && request.resource.data.bio.size() <= 500;
+      }
+
+      function isValidAge(age) {
+        return age == null
+          || (age is int && age >= 2 && age <= 18);
+      }
+
+      function hasValidChildAges() {
+        let ages = request.resource.data.childAges;
+        let count = request.resource.data.childCount;
+
+        return ages is list
+          && ages.size() == count
+          && (count < 1 || isValidAge(ages[0]))
+          && (count < 2 || isValidAge(ages[1]))
+          && (count < 3 || isValidAge(ages[2]))
+          && (count < 4 || isValidAge(ages[3]));
+      }
+
+      function hasValidOnboardingData() {
+        return request.resource.data.childCount is int
+          && request.resource.data.childCount >= 1
+          && request.resource.data.childCount <= 4
+          && hasValidChildAges()
+          && request.resource.data.homeschoolApproach is string
+          && request.resource.data.homeschoolApproach in [
+            'Traditional',
+            'Charlotte Mason',
+            'Montessori',
+            'Classical Education',
+            'Unschooling',
+            'Unit Studies',
+            'Other'
+          ]
+          && request.resource.data.subjects is list
+          && request.resource.data.subjects.size() > 0
+          && request.resource.data.subjects.size() <= 7
+          && request.resource.data.subjects.hasOnly([
+            'English',
+            'Mathematics',
+            'Science',
+            'History',
+            'Geography',
+            'Music',
+            'Art & Design'
+          ])
+          && request.resource.data.locationSharingEnabled is bool
+          && request.resource.data.onboardingCompleted == true
+          && request.resource.data.onboardingCompletedAt == request.time
+          && request.resource.data.updatedAt == request.time;
+      }
+
+      allow read: if isOwner() || isAdmin();
+
+      allow create: if isOwner()
+        && request.resource.data.keys().hasAll([
+          'uid',
+          'name',
+          'email',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'name',
+          'email',
+          'authProvider',
+          'createdAt',
+          'updatedAt'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.authProvider in [
+          'password',
+          'google',
+          'apple'
+        ]
+        && isValidName()
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['name', 'updatedAt'])
+        && isValidName()
+        && request.resource.data.updatedAt == request.time;
+
+      // The profile owner can add or edit their bio.
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['bio', 'updatedAt'])
+        && isValidBio()
+        && request.resource.data.updatedAt == request.time;
+
+      // A friend code is immutable once assigned to an account.
+      allow update: if isOwner()
+        && !('friendCode' in resource.data)
+        && request.resource.data.friendCode is string
+        && request.resource.data.friendCode.size() == 8
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['friendCode', 'updatedAt'])
+        && getAfter(
+          /databases/$(database)/documents/friendCodes/$(request.resource.data.friendCode)
+        ).data.userId == request.auth.uid
+        && request.resource.data.updatedAt == request.time;
+
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'childCount',
+            'childAges',
+            'homeschoolApproach',
+            'subjects',
+            'locationSharingEnabled',
+            'onboardingCompleted',
+            'onboardingCompletedAt',
+            'updatedAt'
+          ])
+        && hasValidOnboardingData();
+
+      // Community preferences can be adjusted after onboarding without
+      // rewriting the original onboarding completion timestamp.
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'homeschoolApproach',
+            'subjects',
+            'locationSharingEnabled',
+            'updatedAt'
+          ])
+        && request.resource.data.homeschoolApproach is string
+        && request.resource.data.homeschoolApproach in [
+          'Traditional',
+          'Charlotte Mason',
+          'Montessori',
+          'Classical Education',
+          'Unschooling',
+          'Unit Studies',
+          'Other'
+        ]
+        && request.resource.data.subjects is list
+        && request.resource.data.subjects.size() <= 7
+        && request.resource.data.subjects.hasOnly([
+          'English',
+          'Mathematics',
+          'Science',
+          'History',
+          'Geography',
+          'Music',
+          'Art & Design'
+        ])
+        && request.resource.data.locationSharingEnabled is bool
+        && request.resource.data.updatedAt == request.time;
+
+      allow delete: if isOwner();
+
+      match /parents/{parentId} {
+        allow read: if isOwner();
+        allow create: if isOwner()
+          && request.resource.data.keys().hasOnly([
+            'userId',
+            'name',
+            'friendCode',
+            'addedAt'
+          ])
+          && request.resource.data.userId == parentId
+          && request.resource.data.userId != request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && request.resource.data.friendCode is string
+          && request.resource.data.friendCode.size() == 8
+          && get(
+            /databases/$(database)/documents/friendCodes/$(request.resource.data.friendCode)
+          ).data.userId == parentId
+          && request.resource.data.name == get(
+            /databases/$(database)/documents/friendCodes/$(request.resource.data.friendCode)
+          ).data.displayName
+          && request.resource.data.addedAt == request.time;
+        allow update: if false;
+        allow delete: if isOwner();
+      }
+    }
+
+    match /friendCodes/{friendCode} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/friendCodes/$(friendCode))
+        && friendCode.size() == 8
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'displayName',
+          'createdAt'
+        ])
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.displayName == getAfter(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.name
+        && getAfter(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.friendCode == friendCode
+        && request.resource.data.createdAt == request.time;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly(['displayName'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.displayName == get(
+          /databases/$(database)/documents/users/$(request.auth.uid)
+        ).data.name;
+      allow delete: if false;
+    }
+
+    match /posts/{postId} {
+      allow read: if signedIn();
+
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorName is string
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 5000
+        && request.resource.data.replyCount == 0;
+
+      allow update: if signedIn() && (
+        resource.data.authorId == request.auth.uid
+        || (
+          request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['replyCount'])
+          && request.resource.data.replyCount == resource.data.replyCount + 1
+        )
+      );
+
+      allow delete: if signedIn()
+        && resource.data.authorId == request.auth.uid;
+
+      match /replies/{replyId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 5000;
+        allow update, delete: if signedIn()
+          && resource.data.authorId == request.auth.uid;
+      }
+    }
+
+    match /conversations/{conversationId} {
+      function isParticipant() {
+        return signedIn()
+          && request.auth.uid in resource.data.participants;
+      }
+
+      function isCreatingForConnection() {
+        let participants = request.resource.data.participants;
+        let otherId = participants[0] == request.auth.uid
+          ? participants[1]
+          : participants[0];
+        return signedIn()
+          && participants is list
+          && participants.size() == 2
+          && request.auth.uid in participants
+          && participants[0] != participants[1]
+          && (
+            exists(
+              /databases/$(database)/documents/users/$(request.auth.uid)/parents/$(otherId)
+            )
+            || exists(
+              /databases/$(database)/documents/users/$(otherId)/parents/$(request.auth.uid)
+            )
+          );
+      }
+
+      allow get: if signedIn() && (
+        !exists(
+          /databases/$(database)/documents/conversations/$(conversationId)
+        )
+        || isParticipant()
+      );
+      allow list: if false;
+      allow create: if isCreatingForConnection()
+        && request.resource.data.keys().hasOnly([
+          'participants',
+          'createdAt',
+          'lastMessage',
+          'lastMessageAt',
+          'unreadFor'
+        ])
+        && request.resource.data.lastMessage is string
+        && request.resource.data.lastMessage.size() > 0
+        && request.resource.data.lastMessage.size() <= 2000
+        && request.resource.data.unreadFor is list
+        && request.resource.data.unreadFor.size() == 1
+        && request.resource.data.unreadFor[0] in request.resource.data.participants
+        && request.resource.data.unreadFor[0] != request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastMessageAt == request.time;
+      allow update: if isParticipant()
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['lastMessage', 'lastMessageAt', 'unreadFor'])
+        && request.resource.data.lastMessage is string
+        && request.resource.data.lastMessage.size() > 0
+        && request.resource.data.lastMessage.size() <= 2000
+        && request.resource.data.unreadFor is list
+        && request.resource.data.unreadFor.size() == 1
+        && request.resource.data.unreadFor.hasOnly(
+          request.resource.data.participants
+        )
+        && !request.resource.data.unreadFor.hasAny([request.auth.uid])
+        && request.resource.data.lastMessageAt == request.time;
+
+      allow update: if isParticipant()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['unreadFor'])
+        && request.resource.data.unreadFor is list
+        && !request.resource.data.unreadFor.hasAny([request.auth.uid])
+        && request.resource.data.unreadFor.hasOnly(resource.data.unreadFor);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function canAccessConversation() {
+          return signedIn()
+            && request.auth.uid in getAfter(
+              /databases/$(database)/documents/conversations/$(conversationId)
+            ).data.participants;
+        }
+
+        allow read: if signedIn()
+          && request.auth.uid in get(
+            /databases/$(database)/documents/conversations/$(conversationId)
+          ).data.participants;
+        allow create: if canAccessConversation()
+          && request.resource.data.keys().hasOnly([
+            'senderId',
+            'text',
+            'createdAt'
+          ])
+          && request.resource.data.senderId == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    match /postReports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.postId is string;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /connectionReports/{reportId} {
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly([
+          'reportedUserId',
+          'reportedBy',
+          'createdAt'
+        ])
+        && request.resource.data.reportedBy == request.auth.uid
+        && request.resource.data.reportedUserId is string
+        && request.resource.data.reportedUserId != request.auth.uid
+        && request.resource.data.createdAt == request.time;
+      allow read: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /experiences/{experienceId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /resources/{resourceId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
