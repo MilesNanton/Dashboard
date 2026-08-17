@@ -37,7 +37,7 @@
 .panelHeading h2 { margin: 0; font-size: 17px; }
 .panelHeading span { color: #979d98; font-size: 11px; }
 .list { margin: 0; padding: 6px 0 0; list-style: none; counter-reset: post; }
-.list li { counter-increment: post; display: grid; grid-template-columns: 32px 42px 1fr; align-items: center; gap: 10px; padding: 14px 3px; border-bottom: 1px solid #f0f2f0; }
+.list li { counter-increment: post; display: grid; grid-template-columns: 32px 42px minmax(0, 1fr); align-items: center; gap: 10px; padding: 14px 3px; border-bottom: 1px solid #f0f2f0; }
 .list li::before { content: counter(post) "."; color: #777e78; font-size: 12px; text-align: right; }
 .avatar { width: 36px; height: 36px; display: grid; place-items: center; color: #fff; background: #43a86d; border-radius: 4px; font-size: 13px; font-weight: 700; }
 .itemThumbnail, .itemPlaceholder { width: 42px; height: 42px; display: block; border-radius: 2px; object-fit: cover; }
@@ -67,7 +67,7 @@
 .uploadField input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .uploadField > span { margin: 0 !important; color: #079242; text-decoration: underline; font-weight: 500 !important; }
 .uploadField img { width: 100%; height: 100%; display: block; object-fit: contain; }
-.formOptions { grid-column: 1 / -1; display: grid; grid-template-columns: 1.15fr 1fr 1fr 1fr; gap: 16px; }
+.formOptions { grid-column: 1 / -1; display: grid; grid-template-columns: 1.05fr 1fr 1fr .8fr 1.55fr; gap: 16px; }
 .submitExperience { grid-column: 1 / -1; width: 65%; height: 48px; margin: 8px auto 0; color: #fff; border: 0; background: #0ba44a; cursor: pointer; }
 .submitExperience:hover { background: #078b3e; }
 .submitExperience:disabled { cursor: not-allowed; opacity: .65; }

@@ -1,0 +1,62 @@
+name: Deploy Next.js to GitHub Pages
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build website
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyAy9_VhXbo9k5zHZswxZKFKD6UDVSsoU_A
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: classmates-23e84.firebaseapp.com
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: classmates-23e84
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: classmates-23e84.firebasestorage.app
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: 1024150348141
+          NEXT_PUBLIC_FIREBASE_APP_ID: 1:1024150348141:web:cffb8beffbdcd14acafa64
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: G-SEJHQ687DP
+          NEXT_PUBLIC_ADMIN_EMAIL: milesnantonfloat@gmail.com
+        run: npm run build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./out
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -197,6 +197,7 @@ export default function DashboardPage() {
         environment: formData.get("environment"),
         isFree,
         price: isFree ? 0 : Number(formData.get("price") || 0),
+        bookingLink: formData.get("bookingLink")?.trim() || "",
         thumbnailUrl: uploadedThumbnailUrl,
         status: "published",
         createdBy: getFirebaseAuth().currentUser?.uid || "",
@@ -302,7 +303,6 @@ export default function DashboardPage() {
                     )}
                     <div>
                       <strong>{experience.name || "Untitled experience"}</strong>
-                      <p>{experience.subject || experience.type || "Experience"}</p>
                     </div>
                   </li>
                 ))}
@@ -353,17 +353,16 @@ export default function DashboardPage() {
             )}
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleGroup}>
-                <h2 id="experience-title">Create new experience ({experienceType})</h2>
+                <h2 id="experience-title">Create new experience</h2>
                 <select name="subject" form="experience-form" aria-label="Subject category" defaultValue="" required>
                   <option value="" disabled>Select subject category</option>
-                  <option>Science</option>
-                  <option>History</option>
-                  <option>Geography</option>
-                  <option>Art &amp; Design</option>
-                  <option>Mathematics</option>
-                  <option>English</option>
-                  <option>Computing</option>
+                  <option>Museums</option>
+                  <option>Workshops</option>
+                  <option>Nature</option>
+                  <option>Arts</option>
                   <option>STEM</option>
+                  <option>Sport</option>
+                  <option>Culture</option>
                   <option>Other</option>
                 </select>
               </div>
@@ -406,6 +405,7 @@ export default function DashboardPage() {
                 <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue=""><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
                 <label><span>Is it free?</span><select name="isFree" required defaultValue=""><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
                 <label><span>Price</span><input name="price" type="number" min="0" step="0.01" placeholder="£00.00" /></label>
+                <label><span>Booking Link</span><input name="bookingLink" type="url" placeholder="Paste booking link for book CTA" /></label>
               </div>
 
               {experienceError && <p className={styles.experienceError} role="alert">{experienceError}</p>}

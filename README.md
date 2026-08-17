@@ -34,3 +34,9 @@ npm run build  # Check and create a production build
 npm start      # Run the production build
 npm run lint   # Check code quality
 ```
+
+## Deploy to GitHub Pages
+
+The workflow in `.github/workflows/deploy.yml` automatically builds and deploys
+the site whenever code is pushed to the `main` branch. In the GitHub repository,
+open **Settings → Pages** and select **GitHub Actions** as the source.
