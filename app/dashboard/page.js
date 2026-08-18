@@ -194,6 +194,7 @@ export default function DashboardPage() {
       await addDoc(collection(getFirebaseDatabase(), "experiences"), {
         type: formData.get("guidanceType"),
         guidanceType: formData.get("guidanceType"),
+        category: formData.get("category"),
         subject: formData.get("subject"),
         name: formData.get("name").trim(),
         schedule: formData.get("schedule").trim(),
@@ -447,6 +448,17 @@ export default function DashboardPage() {
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleGroup}>
                 <h2 id="experience-title">Create new experience</h2>
+                <select name="category" form="experience-form" aria-label="Experience category" defaultValue="" required>
+                  <option value="" disabled>Select category</option>
+                  <option>Museums</option>
+                  <option>Workshops</option>
+                  <option>Nature</option>
+                  <option>Arts</option>
+                  <option>STEM</option>
+                  <option>Sport</option>
+                  <option>Culture</option>
+                  <option>Other</option>
+                </select>
               </div>
               <button className={styles.closeButton} type="button" onClick={closeExperienceForm}>Close</button>
             </div>
@@ -484,18 +496,19 @@ export default function DashboardPage() {
                 <span>Subject</span>
                 <select name="subject" defaultValue="" required>
                   <option value="" disabled>Select a subject</option>
-                  <option>Museums</option>
-                  <option>Workshops</option>
-                  <option>Nature</option>
-                  <option>Arts</option>
+                  <option>Science</option>
+                  <option>History</option>
+                  <option>Geography</option>
+                  <option>Art &amp; Design</option>
+                  <option>Mathematics</option>
+                  <option>English</option>
+                  <option>Computing</option>
                   <option>STEM</option>
-                  <option>Sport</option>
-                  <option>Culture</option>
                   <option>Other</option>
                 </select>
               </label>
               <label className={styles.descriptionField}>
-                <span>{experienceGuidance === "Guided" ? "What to expect" : "Try this while you&apos;re there"}</span>
+                <span>{experienceGuidance === "Guided" ? "What to expect" : "Try this while you're there"}</span>
                 <textarea
                   name="description"
                   required
