@@ -496,15 +496,18 @@ export default function DashboardPage() {
                 <span>Subject</span>
                 <select name="subject" defaultValue="" required>
                   <option value="" disabled>Select a subject</option>
+                  <option>Maths</option>
+                  <option>English</option>
                   <option>Science</option>
                   <option>History</option>
                   <option>Geography</option>
-                  <option>Art &amp; Design</option>
-                  <option>Mathematics</option>
-                  <option>English</option>
+                  <option>Art</option>
                   <option>Computing</option>
-                  <option>STEM</option>
-                  <option>Other</option>
+                  <option>Religious</option>
+                  <option>Music</option>
+                  <option>Languages</option>
+                  <option>Life Skills</option>
+                  <option>P.E</option>
                 </select>
               </label>
               <label className={styles.descriptionField}>
