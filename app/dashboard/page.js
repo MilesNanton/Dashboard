@@ -44,7 +44,6 @@ export default function DashboardPage() {
   const [topExperiences, setTopExperiences] = useState([]);
   const [topResources, setTopResources] = useState([]);
   const [dataNotice, setDataNotice] = useState("");
-  const [experienceMenuOpen, setExperienceMenuOpen] = useState(false);
   const [experienceType, setExperienceType] = useState(null);
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
@@ -121,7 +120,6 @@ export default function DashboardPage() {
 
   function openExperienceForm(type) {
     setExperienceType(type);
-    setExperienceMenuOpen(false);
   }
 
   function closeExperienceForm() {
@@ -234,22 +232,13 @@ export default function DashboardPage() {
       <header className={styles.header}>
         <span className={styles.logo}>CLASSMATES</span>
         <div className={styles.headerActions}>
-          <div className={styles.actionWrapper}>
-            <button
-              className={styles.createAction}
-              type="button"
-              onClick={() => setExperienceMenuOpen((open) => !open)}
-              aria-expanded={experienceMenuOpen}
-            >
-              Add an experience <span>+</span>
-            </button>
-            {experienceMenuOpen && (
-              <div className={styles.experienceMenu}>
-                <button type="button" onClick={() => openExperienceForm("Place")}>Place</button>
-                <button type="button" onClick={() => openExperienceForm("Event")}>Event</button>
-              </div>
-            )}
-          </div>
+          <button
+            className={styles.createAction}
+            type="button"
+            onClick={() => openExperienceForm("Place")}
+          >
+            Add an experience <span>+</span>
+          </button>
           <button className={styles.createAction} type="button">
             Add a resource <span>+</span>
           </button>
