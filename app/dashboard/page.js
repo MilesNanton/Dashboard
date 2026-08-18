@@ -50,6 +50,11 @@ export default function DashboardPage() {
   const [experienceSaving, setExperienceSaving] = useState(false);
   const [experienceSaveStep, setExperienceSaveStep] = useState("");
   const [experienceError, setExperienceError] = useState("");
+  const [resourceModalOpen, setResourceModalOpen] = useState(false);
+  const [resourceFile, setResourceFile] = useState(null);
+  const [resourceSaving, setResourceSaving] = useState(false);
+  const [resourceSaveStep, setResourceSaveStep] = useState("");
+  const [resourceError, setResourceError] = useState("");
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -223,6 +228,101 @@ export default function DashboardPage() {
     }
   }
 
+  function closeResourceForm() {
+    setResourceModalOpen(false);
+    setResourceFile(null);
+    setResourceError("");
+    setResourceSaveStep("");
+  }
+
+  function handleResourceFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setResourceError("");
+
+    if (file.type !== "application/pdf") {
+      setResourceError("Please select a valid PDF file.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size >= 20 * 1024 * 1024) {
+      setResourceError("The PDF must be smaller than 20MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setResourceFile(file);
+  }
+
+  async function handleCreateResource(event) {
+    event.preventDefault();
+    if (!resourceFile) {
+      setResourceError("Please select a PDF file.");
+      return;
+    }
+
+    setResourceSaving(true);
+    setResourceError("");
+    setResourceSaveStep("Uploading PDF...");
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const safeFileName = resourceFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+      const storageReference = ref(
+        getFirebaseStorage(),
+        `resources/${Date.now()}-${safeFileName}`
+      );
+      const uploadResult = await Promise.race([
+        uploadBytes(storageReference, resourceFile, { contentType: "application/pdf" }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("storage-timeout")), 30000)
+        ),
+      ]);
+      const pdfUrl = await getDownloadURL(uploadResult.ref);
+
+      setResourceSaveStep("Saving resource...");
+      const resourceDocument = {
+        title: formData.get("title").trim(),
+        name: formData.get("title").trim(),
+        subject: formData.get("subject"),
+        pages: Number(formData.get("pages")),
+        ageRange: formData.get("ageRange"),
+        keyStage: formData.get("keyStage"),
+        pdfUrl,
+        fileName: resourceFile.name,
+        status: "published",
+        createdBy: getFirebaseAuth().currentUser?.uid || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      const createdResource = await addDoc(
+        collection(getFirebaseDatabase(), "resources"),
+        resourceDocument
+      );
+
+      setTopResources((items) => [
+        { id: createdResource.id, ...resourceDocument },
+        ...items,
+      ].slice(0, 6));
+      closeResourceForm();
+      setDataNotice("Resource created successfully. It is now available to the mobile app.");
+    } catch (error) {
+      setResourceError(
+        error.message === "storage-timeout"
+          ? "PDF upload timed out. Please check your connection and try again."
+          : error.code === "storage/unauthorized"
+            ? "PDF upload was denied. Publish the latest Firebase Storage rules."
+            : error.code === "permission-denied"
+              ? "Firebase blocked this save. Publish the latest Firestore rules."
+              : "Unable to create the resource. Please try again."
+      );
+    } finally {
+      setResourceSaving(false);
+      setResourceSaveStep("");
+    }
+  }
+
   if (checkingAuth) {
     return <main className={styles.loading}>Checking admin access...</main>;
   }
@@ -239,7 +339,7 @@ export default function DashboardPage() {
           >
             Add an experience <span>+</span>
           </button>
-          <button className={styles.createAction} type="button">
+          <button className={styles.createAction} type="button" onClick={() => setResourceModalOpen(true)}>
             Add a resource <span>+</span>
           </button>
           <button className={styles.logoutButton} onClick={handleLogout}>Log out</button>
@@ -400,6 +500,87 @@ export default function DashboardPage() {
               {experienceError && <p className={styles.experienceError} role="alert">{experienceError}</p>}
               <button className={styles.submitExperience} type="submit" disabled={experienceSaving}>
                 {experienceSaving ? experienceSaveStep : "Create experience"}
+              </button>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {resourceModalOpen && (
+        <div className={styles.modalOverlay} role="presentation">
+          <section className={`${styles.modal} ${styles.resourceModal}`} role="dialog" aria-modal="true" aria-labelledby="resource-title">
+            {resourceSaving && (
+              <div className={styles.savingOverlay} role="status" aria-live="polite">
+                <span className={styles.spinner} />
+                <strong>{resourceSaveStep}</strong>
+                <small>Please wait while your resource is being created.</small>
+              </div>
+            )}
+
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitleGroup}>
+                <h2 id="resource-title">Upload a resource</h2>
+                <select name="subject" form="resource-form" aria-label="Resource subject category" defaultValue="" required>
+                  <option value="" disabled>Select subject category</option>
+                  <option>Museums</option>
+                  <option>Workshops</option>
+                  <option>Nature</option>
+                  <option>Arts</option>
+                  <option>STEM</option>
+                  <option>Sport</option>
+                  <option>Culture</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <button className={styles.closeButton} type="button" onClick={closeResourceForm}>Close</button>
+            </div>
+
+            <form id="resource-form" className={styles.resourceForm} onSubmit={handleCreateResource}>
+              <div className={styles.resourceFields}>
+                <label>
+                  <span>Resource title</span>
+                  <input name="title" required placeholder="e.g. Vikings: Raiders, Traders & Explorers" />
+                </label>
+                <label>
+                  <span>Age</span>
+                  <select name="ageRange" required defaultValue="">
+                    <option value="" disabled>Select age</option>
+                    <option>3-5</option>
+                    <option>5-7</option>
+                    <option>7-11</option>
+                    <option>11-14</option>
+                    <option>14-18</option>
+                    <option>All ages</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Key Stage</span>
+                  <select name="keyStage" required defaultValue="">
+                    <option value="" disabled>Select key stage</option>
+                    <option>Early Years</option>
+                    <option>Key Stage 1</option>
+                    <option>Key Stage 2</option>
+                    <option>Key Stage 3</option>
+                    <option>Key Stage 4</option>
+                    <option>Post-16</option>
+                  </select>
+                </label>
+              </div>
+
+              <div className={styles.resourceSide}>
+                <label>
+                  <span>Pages</span>
+                  <input name="pages" type="number" min="1" required placeholder="1" />
+                </label>
+                <label className={styles.pdfUploadField}>
+                  <input type="file" accept="application/pdf,.pdf" onChange={handleResourceFile} />
+                  <span>{resourceFile ? resourceFile.name : "Click to upload PDF"}</span>
+                </label>
+              </div>
+
+              {resourceError && <p className={styles.resourceError} role="alert">{resourceError}</p>}
+              <button className={styles.submitExperience} type="submit" disabled={resourceSaving}>
+                {resourceSaving ? resourceSaveStep : "Create resource"}
               </button>
             </form>
           </section>
