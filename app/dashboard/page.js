@@ -189,7 +189,8 @@ export default function DashboardPage() {
       setExperienceSaveStep("Saving experience...");
       const isFree = formData.get("isFree") === "Yes";
       await addDoc(collection(getFirebaseDatabase(), "experiences"), {
-        type: experienceType.toLowerCase(),
+        type: formData.get("guidanceType"),
+        guidanceType: formData.get("guidanceType"),
         subject: formData.get("subject"),
         name: formData.get("name").trim(),
         schedule: formData.get("schedule").trim(),
@@ -492,6 +493,7 @@ export default function DashboardPage() {
               <div className={styles.formOptions}>
                 <label><span>Recommended age</span><select name="ageRange" required defaultValue=""><option value="" disabled>Select age</option><option>2-4 years</option><option>5-7 years</option><option>8-11 years</option><option>12-18 years</option><option>All ages</option></select></label>
                 <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue=""><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
+                <label><span>Experience type</span><select name="guidanceType" required defaultValue=""><option value="" disabled>Select</option><option value="Guided">Guided</option><option value="Self-led">Self-led</option></select></label>
                 <label><span>Is it free?</span><select name="isFree" required defaultValue=""><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
                 <label><span>Price</span><input name="price" type="number" min="0" step="0.01" placeholder="£00.00" /></label>
                 <label><span>Booking Link</span><input name="bookingLink" type="url" placeholder="Paste booking link for book CTA" /></label>
