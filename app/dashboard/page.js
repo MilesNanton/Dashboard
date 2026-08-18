@@ -45,6 +45,7 @@ export default function DashboardPage() {
   const [topResources, setTopResources] = useState([]);
   const [dataNotice, setDataNotice] = useState("");
   const [experienceType, setExperienceType] = useState(null);
+  const [experienceGuidance, setExperienceGuidance] = useState("Self-led");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [experienceSaving, setExperienceSaving] = useState(false);
@@ -124,6 +125,7 @@ export default function DashboardPage() {
   }
 
   function openExperienceForm(type) {
+    setExperienceGuidance("Self-led");
     setExperienceType(type);
   }
 
@@ -134,6 +136,7 @@ export default function DashboardPage() {
     setThumbnailFile(null);
     setExperienceError("");
     setExperienceSaveStep("");
+    setExperienceGuidance("Self-led");
   }
 
   function handleThumbnail(event) {
@@ -467,8 +470,12 @@ export default function DashboardPage() {
               </label>
               <label>
                 <span>Experience type</span>
-                <select name="guidanceType" required defaultValue="">
-                  <option value="" disabled>Select experience type</option>
+                <select
+                  name="guidanceType"
+                  required
+                  value={experienceGuidance}
+                  onChange={(event) => setExperienceGuidance(event.target.value)}
+                >
                   <option value="Guided">Guided</option>
                   <option value="Self-led">Self-led</option>
                 </select>
@@ -488,8 +495,12 @@ export default function DashboardPage() {
                 </select>
               </label>
               <label className={styles.descriptionField}>
-                <span>Try this while you&apos;re there</span>
-                <textarea name="description" required placeholder="Tell families what they will discover, learn and experience." />
+                <span>{experienceGuidance === "Guided" ? "What to expect" : "Try this while you&apos;re there"}</span>
+                <textarea
+                  name="description"
+                  required
+                  placeholder={experienceGuidance === "Guided" ? "Add bullet points describing what to expect." : "Add bullet points for things families can try while they are there."}
+                />
               </label>
               <label className={styles.uploadField}>
                 <input type="file" accept="image/*" onChange={handleThumbnail} />
