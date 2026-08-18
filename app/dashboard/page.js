@@ -444,17 +444,6 @@ export default function DashboardPage() {
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleGroup}>
                 <h2 id="experience-title">Create new experience</h2>
-                <select name="subject" form="experience-form" aria-label="Subject category" defaultValue="" required>
-                  <option value="" disabled>Select subject category</option>
-                  <option>Museums</option>
-                  <option>Workshops</option>
-                  <option>Nature</option>
-                  <option>Arts</option>
-                  <option>STEM</option>
-                  <option>Sport</option>
-                  <option>Culture</option>
-                  <option>Other</option>
-                </select>
               </div>
               <button className={styles.closeButton} type="button" onClick={closeExperienceForm}>Close</button>
             </div>
@@ -476,8 +465,30 @@ export default function DashboardPage() {
                 <span>Hosted by</span>
                 <input name="hostedBy" required placeholder="Name of organisation/company" />
               </label>
+              <label>
+                <span>Experience type</span>
+                <select name="guidanceType" required defaultValue="">
+                  <option value="" disabled>Select experience type</option>
+                  <option value="Guided">Guided</option>
+                  <option value="Self-led">Self-led</option>
+                </select>
+              </label>
+              <label>
+                <span>Subject</span>
+                <select name="subject" defaultValue="" required>
+                  <option value="" disabled>Select a subject</option>
+                  <option>Museums</option>
+                  <option>Workshops</option>
+                  <option>Nature</option>
+                  <option>Arts</option>
+                  <option>STEM</option>
+                  <option>Sport</option>
+                  <option>Culture</option>
+                  <option>Other</option>
+                </select>
+              </label>
               <label className={styles.descriptionField}>
-                <span>Description</span>
+                <span>Try this while you&apos;re there</span>
                 <textarea name="description" required placeholder="Tell families what they will discover, learn and experience." />
               </label>
               <label className={styles.uploadField}>
@@ -493,7 +504,6 @@ export default function DashboardPage() {
               <div className={styles.formOptions}>
                 <label><span>Recommended age</span><select name="ageRange" required defaultValue=""><option value="" disabled>Select age</option><option>2-4 years</option><option>5-7 years</option><option>8-11 years</option><option>12-18 years</option><option>All ages</option></select></label>
                 <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue=""><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
-                <label><span>Experience type</span><select name="guidanceType" required defaultValue=""><option value="" disabled>Select</option><option value="Guided">Guided</option><option value="Self-led">Self-led</option></select></label>
                 <label><span>Is it free?</span><select name="isFree" required defaultValue=""><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
                 <label><span>Price</span><input name="price" type="number" min="0" step="0.01" placeholder="£00.00" /></label>
                 <label><span>Booking Link</span><input name="bookingLink" type="url" placeholder="Paste booking link for book CTA" /></label>
