@@ -448,15 +448,14 @@ export default function DashboardPage() {
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleGroup}>
                 <h2 id="experience-title">Create new experience</h2>
-                <select name="category" form="experience-form" aria-label="Experience category" defaultValue="" required>
-                  <option value="" disabled>Select category</option>
-                  <option>Museums</option>
-                  <option>Workshops</option>
-                  <option>Nature</option>
-                  <option>Arts</option>
-                  <option>STEM</option>
-                  <option>Sport</option>
-                  <option>Culture</option>
+                <select name="category" form="experience-form" aria-label="Experience type" defaultValue="" required>
+                  <option value="" disabled>Experience type</option>
+                  <option>Museums &amp; galleries</option>
+                  <option>Workshops &amp; making</option>
+                  <option>Nature &amp; outdoors</option>
+                  <option>Places &amp; attractions</option>
+                  <option>History &amp; heritage</option>
+                  <option>Active &amp; sport</option>
                   <option>Other</option>
                 </select>
               </div>
