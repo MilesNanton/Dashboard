@@ -450,13 +450,16 @@ export default function DashboardPage() {
                 <h2 id="experience-title">Create new experience</h2>
                 <select name="category" form="experience-form" aria-label="Experience type" defaultValue="" required>
                   <option value="" disabled>Experience type</option>
-                  <option>Museums &amp; galleries</option>
-                  <option>Workshops &amp; making</option>
-                  <option>Nature &amp; outdoors</option>
-                  <option>Places &amp; attractions</option>
-                  <option>History &amp; heritage</option>
-                  <option>Active &amp; sport</option>
-                  <option>Other</option>
+                  <option>Museums</option>
+                  <option>Making</option>
+                  <option>Nature</option>
+                  <option>History</option>
+                  <option>Arts</option>
+                  <option>Science</option>
+                  <option>Sport</option>
+                  <option>Places</option>
+                  <option>Culture</option>
+                  <option>Explore</option>
                 </select>
               </div>
               <button className={styles.closeButton} type="button" onClick={closeExperienceForm}>Close</button>
