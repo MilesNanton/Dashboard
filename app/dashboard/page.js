@@ -10,12 +10,14 @@ import {
   deleteDoc,
   doc,
   getCountFromServer,
+  getDoc,
   getDocs,
   limit,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  writeBatch,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getFirebaseAuth, getFirebaseDatabase, getFirebaseStorage } from "../../lib/firebase";
@@ -68,6 +70,8 @@ export default function DashboardPage() {
   });
   const [topExperiences, setTopExperiences] = useState([]);
   const [topResources, setTopResources] = useState([]);
+  const [flagReports, setFlagReports] = useState([]);
+  const [flagsLoading, setFlagsLoading] = useState(true);
   const [dataNotice, setDataNotice] = useState("");
   const [experienceType, setExperienceType] = useState(null);
   const [editingExperience, setEditingExperience] = useState(null);
@@ -89,6 +93,9 @@ export default function DashboardPage() {
   const [resourceToDelete, setResourceToDelete] = useState(null);
   const [resourceDeleting, setResourceDeleting] = useState(false);
   const [resourceDeleteError, setResourceDeleteError] = useState("");
+  const [flagAction, setFlagAction] = useState(null);
+  const [flagActionSaving, setFlagActionSaving] = useState(false);
+  const [flagActionError, setFlagActionError] = useState("");
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -114,6 +121,7 @@ export default function DashboardPage() {
           Promise.allSettled([
             getDocs(query(collection(database, "experiences"), orderBy("createdAt", "desc"))),
             getDocs(query(collection(database, "resources"), orderBy("createdAt", "desc"))),
+            getDocs(collection(database, "postReports")),
           ]),
         ]);
 
@@ -144,8 +152,37 @@ export default function DashboardPage() {
             contentResults[1].value.docs.map((document) => ({ id: document.id, ...document.data() }))
           );
         }
+        if (contentResults[2].status === "fulfilled") {
+          const reports = await Promise.all(
+            contentResults[2].value.docs.map(async (reportDocument) => {
+              const report = { id: reportDocument.id, ...reportDocument.data() };
+              const postSnapshot = report.postId
+                ? await getDoc(doc(database, "posts", report.postId))
+                : null;
+              const post = postSnapshot?.exists() ? postSnapshot.data() : {};
+              const userId = report.reportedUserId || post.authorId || "";
+              const userSnapshot = userId
+                ? await getDoc(doc(database, "users", userId))
+                : null;
+              const user = userSnapshot?.exists() ? userSnapshot.data() : {};
+
+              return {
+                ...report,
+                userId,
+                userName: user.name || post.authorName || report.reportedUserName || "Unknown user",
+                userPhotoUrl: user.photoURL || user.photoUrl || post.authorPhotoUrl || "",
+                postContent: post.content || report.postContent || "Post is no longer available.",
+              };
+            })
+          );
+          setFlagReports(reports);
+        } else {
+          setDataNotice("Flag reports could not be loaded. Check the Firestore admin rules.");
+        }
+        setFlagsLoading(false);
       } catch {
         setDataNotice("Some database data could not be loaded. Admin Firestore permissions are required.");
+        setFlagsLoading(false);
       }
     });
 
@@ -474,6 +511,38 @@ export default function DashboardPage() {
     }
   }
 
+  async function handleFlagAction() {
+    if (!flagAction) return;
+    setFlagActionSaving(true);
+    setFlagActionError("");
+
+    try {
+      const database = getFirebaseDatabase();
+      const batch = writeBatch(database);
+      batch.delete(doc(database, "postReports", flagAction.report.id));
+
+      if (flagAction.type === "post" && flagAction.report.postId) {
+        batch.delete(doc(database, "posts", flagAction.report.postId));
+      }
+      if (flagAction.type === "account" && flagAction.report.userId) {
+        batch.delete(doc(database, "users", flagAction.report.userId));
+      }
+
+      await batch.commit();
+      setFlagReports((items) => items.filter((item) => item.id !== flagAction.report.id));
+      setDataNotice(flagAction.type === "post" ? "Flagged post deleted successfully." : "Flagged user profile deleted successfully.");
+      setFlagAction(null);
+    } catch (error) {
+      setFlagActionError(
+        error.code === "permission-denied"
+          ? "Firebase blocked this action. Publish the updated Firestore rules first."
+          : "Unable to complete this action. Please try again."
+      );
+    } finally {
+      setFlagActionSaving(false);
+    }
+  }
+
   if (checkingAuth) {
     return <main className={styles.loading}>Checking admin access...</main>;
   }
@@ -664,6 +733,51 @@ export default function DashboardPage() {
               </ol>
             ) : (
               <div className={styles.experiencesEmpty}>No resources to display yet.</div>
+            )}
+          </section>
+        ) : activeSection === "Flag reports" ? (
+          <section className={`${styles.experiencesPanel} ${styles.flagsPanel}`}>
+            <div className={styles.experiencesHeading}><h2>Flags</h2></div>
+            {flagsLoading ? (
+              <div className={styles.experiencesEmpty}>Loading flag reports...</div>
+            ) : flagReports.length ? (
+              <ul className={styles.flagsList}>
+                {flagReports.map((report) => (
+                  <li key={report.id}>
+                    {report.userPhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={report.userPhotoUrl} alt="" />
+                    ) : (
+                      <span className={styles.flagAvatar} />
+                    )}
+                    <div className={styles.flagDetails}>
+                      <strong>{report.userName}</strong>
+                      <p>{report.postContent}</p>
+                    </div>
+                    <div className={styles.flagActions}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFlagActionError("");
+                          setFlagAction({ type: "post", report });
+                        }}
+                        disabled={!report.postId}
+                      >Delete post</button>
+                      <button
+                        className={styles.deleteAccountButton}
+                        type="button"
+                        onClick={() => {
+                          setFlagActionError("");
+                          setFlagAction({ type: "account", report });
+                        }}
+                        disabled={!report.userId}
+                      >Delete account</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className={styles.experiencesEmpty}>No flag reports to display.</div>
             )}
           </section>
         ) : (
@@ -914,6 +1028,27 @@ export default function DashboardPage() {
               <button type="button" onClick={() => setResourceToDelete(null)} disabled={resourceDeleting}>Cancel</button>
               <button className={styles.confirmDeleteButton} type="button" onClick={handleDeleteResource} disabled={resourceDeleting}>
                 {resourceDeleting ? "Deleting..." : "Delete resource"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {flagAction && (
+        <div className={styles.modalOverlay} role="presentation">
+          <section className={styles.deleteDialog} role="alertdialog" aria-modal="true" aria-labelledby="flag-action-title">
+            <span className={styles.deleteDialogIcon}><DeleteIcon /></span>
+            <h2 id="flag-action-title">{flagAction.type === "post" ? "Delete flagged post?" : "Delete flagged account?"}</h2>
+            <p>
+              {flagAction.type === "post"
+                ? "The original post and this report will be permanently removed."
+                : `The Firestore profile for ${flagAction.report.userName} and this report will be permanently removed.`}
+            </p>
+            {flagActionError && <p className={styles.deleteError} role="alert">{flagActionError}</p>}
+            <div className={styles.deleteDialogActions}>
+              <button type="button" onClick={() => setFlagAction(null)} disabled={flagActionSaving}>Cancel</button>
+              <button className={styles.confirmDeleteButton} type="button" onClick={handleFlagAction} disabled={flagActionSaving}>
+                {flagActionSaving ? "Deleting..." : flagAction.type === "post" ? "Delete post" : "Delete account"}
               </button>
             </div>
           </section>

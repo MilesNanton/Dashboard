@@ -40,6 +40,17 @@
 .resourceList { margin: 0; padding: 0; list-style: none; counter-reset: resource; }
 .resourceList li { counter-increment: resource; min-height: 67px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0; padding: 9px 20px; border-bottom: 1px solid #d9ddda; }
 .resourceList li::before { content: counter(resource) "."; font-size: 13px; text-align: right; }
+.flagsPanel { width: min(1110px, 100%); }
+.flagsList { margin: 0; padding: 0 6px; list-style: none; }
+.flagsList li { min-height: 82px; display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; align-items: center; gap: 15px; padding: 10px 0; border-bottom: 1px solid #d9ddda; }
+.flagsList img, .flagAvatar { width: 42px; height: 42px; display: block; object-fit: cover; background: #c9ccca; border-radius: 50%; }
+.flagDetails { min-width: 0; }
+.flagDetails strong { display: block; margin-bottom: 4px; font-size: 14px; }
+.flagDetails p { margin: 0; overflow: hidden; color: #858b86; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.flagActions { display: flex; gap: 14px; padding-left: 20px; }
+.flagActions button { min-width: 102px; height: 34px; padding: 0 12px; color: #e42626; border: 1px solid #d9ddda; border-radius: 3px; background: #fff; cursor: pointer; }
+.flagActions .deleteAccountButton { min-width: 126px; color: #fff; border-color: #860808; background: #860808; }
+.flagActions button:disabled { cursor: not-allowed; opacity: .45; }
 .experienceThumbnail, .experienceThumbnailPlaceholder { width: 34px; height: 34px; display: block; object-fit: cover; background: #d8ddda; }
 .experienceDetails { min-width: 0; }
 .experienceDetails strong, .experienceDetails span { display: block; }
@@ -159,4 +170,7 @@
   .experiencesList li { grid-template-columns: 24px 36px minmax(0, 1fr) auto; gap: 8px; padding-inline: 8px; }
   .resourceList li { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; padding-inline: 8px; }
   .rowActions { gap: 3px; padding-left: 4px; }
+  .flagsList li { grid-template-columns: 42px minmax(0, 1fr); }
+  .flagActions { grid-column: 1 / -1; padding: 0 0 5px 57px; }
+  .flagActions button { min-width: 0; }
 }
