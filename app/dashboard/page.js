@@ -81,10 +81,14 @@ export default function DashboardPage() {
   const [experienceDeleting, setExperienceDeleting] = useState(false);
   const [experienceDeleteError, setExperienceDeleteError] = useState("");
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
+  const [editingResource, setEditingResource] = useState(null);
   const [resourceFile, setResourceFile] = useState(null);
   const [resourceSaving, setResourceSaving] = useState(false);
   const [resourceSaveStep, setResourceSaveStep] = useState("");
   const [resourceError, setResourceError] = useState("");
+  const [resourceToDelete, setResourceToDelete] = useState(null);
+  const [resourceDeleting, setResourceDeleting] = useState(false);
+  const [resourceDeleteError, setResourceDeleteError] = useState("");
 
   useEffect(() => {
     const auth = getFirebaseAuth();
@@ -109,7 +113,7 @@ export default function DashboardPage() {
           ),
           Promise.allSettled([
             getDocs(query(collection(database, "experiences"), orderBy("createdAt", "desc"))),
-            getDocs(query(collection(database, "resources"), orderBy("createdAt", "desc"), limit(6))),
+            getDocs(query(collection(database, "resources"), orderBy("createdAt", "desc"))),
           ]),
         ]);
 
@@ -328,8 +332,16 @@ export default function DashboardPage() {
     }
   }
 
+  function openResourceForm(resource = null) {
+    setEditingResource(resource);
+    setResourceFile(null);
+    setResourceError("");
+    setResourceModalOpen(true);
+  }
+
   function closeResourceForm() {
     setResourceModalOpen(false);
+    setEditingResource(null);
     setResourceFile(null);
     setResourceError("");
     setResourceSaveStep("");
@@ -357,29 +369,35 @@ export default function DashboardPage() {
 
   async function handleCreateResource(event) {
     event.preventDefault();
-    if (!resourceFile) {
+    if (!resourceFile && !editingResource) {
       setResourceError("Please select a PDF file.");
       return;
     }
 
     setResourceSaving(true);
     setResourceError("");
-    setResourceSaveStep("Uploading PDF...");
+    setResourceSaveStep(resourceFile ? "Uploading PDF..." : "Saving resource...");
 
     try {
       const formData = new FormData(event.currentTarget);
-      const safeFileName = resourceFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
-      const storageReference = ref(
-        getFirebaseStorage(),
-        `resources/${Date.now()}-${safeFileName}`
-      );
-      const uploadResult = await Promise.race([
-        uploadBytes(storageReference, resourceFile, { contentType: "application/pdf" }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("storage-timeout")), 30000)
-        ),
-      ]);
-      const pdfUrl = await getDownloadURL(uploadResult.ref);
+      let pdfUrl = editingResource?.pdfUrl || "";
+      let fileName = editingResource?.fileName || "";
+
+      if (resourceFile) {
+        const safeFileName = resourceFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+        const storageReference = ref(
+          getFirebaseStorage(),
+          `resources/${Date.now()}-${safeFileName}`
+        );
+        const uploadResult = await Promise.race([
+          uploadBytes(storageReference, resourceFile, { contentType: "application/pdf" }),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("storage-timeout")), 30000)
+          ),
+        ]);
+        pdfUrl = await getDownloadURL(uploadResult.ref);
+        fileName = resourceFile.name;
+      }
 
       setResourceSaveStep("Saving resource...");
       const resourceDocument = {
@@ -390,23 +408,35 @@ export default function DashboardPage() {
         ageRange: formData.get("ageRange"),
         keyStage: formData.get("keyStage"),
         pdfUrl,
-        fileName: resourceFile.name,
+        fileName,
         status: "published",
-        createdBy: getFirebaseAuth().currentUser?.uid || "",
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
-      const createdResource = await addDoc(
-        collection(getFirebaseDatabase(), "resources"),
-        resourceDocument
-      );
 
-      setTopResources((items) => [
-        { id: createdResource.id, ...resourceDocument },
-        ...items,
-      ].slice(0, 6));
+      if (editingResource) {
+        await updateDoc(
+          doc(getFirebaseDatabase(), "resources", editingResource.id),
+          resourceDocument
+        );
+        setTopResources((items) => items.map((item) =>
+          item.id === editingResource.id ? { ...item, ...resourceDocument, id: item.id } : item
+        ));
+      } else {
+        const createdResource = await addDoc(
+          collection(getFirebaseDatabase(), "resources"),
+          {
+            ...resourceDocument,
+            createdBy: getFirebaseAuth().currentUser?.uid || "",
+            createdAt: serverTimestamp(),
+          }
+        );
+        setTopResources((items) => [
+          { id: createdResource.id, ...resourceDocument },
+          ...items,
+        ]);
+      }
       closeResourceForm();
-      setDataNotice("Resource created successfully. It is now available to the mobile app.");
+      setDataNotice(editingResource ? "Resource updated successfully." : "Resource created successfully. It is now available to the mobile app.");
     } catch (error) {
       setResourceError(
         error.message === "storage-timeout"
@@ -420,6 +450,27 @@ export default function DashboardPage() {
     } finally {
       setResourceSaving(false);
       setResourceSaveStep("");
+    }
+  }
+
+  async function handleDeleteResource() {
+    if (!resourceToDelete) return;
+    setResourceDeleting(true);
+    setResourceDeleteError("");
+
+    try {
+      await deleteDoc(doc(getFirebaseDatabase(), "resources", resourceToDelete.id));
+      setTopResources((items) => items.filter((item) => item.id !== resourceToDelete.id));
+      setDataNotice("Resource deleted successfully.");
+      setResourceToDelete(null);
+    } catch (error) {
+      setResourceDeleteError(
+        error.code === "permission-denied"
+          ? "Firebase blocked this delete. Check the Firestore admin rules."
+          : "Unable to delete the resource. Please try again."
+      );
+    } finally {
+      setResourceDeleting(false);
     }
   }
 
@@ -440,7 +491,7 @@ export default function DashboardPage() {
             Add an experience <span>+</span>
           </button>
           {activeSection !== "Experiences" && (
-            <button className={styles.createAction} type="button" onClick={() => setResourceModalOpen(true)}>
+          <button className={styles.createAction} type="button" onClick={() => openResourceForm()}>
               Add a resource <span>+</span>
             </button>
           )}
@@ -523,7 +574,7 @@ export default function DashboardPage() {
             </div>
             {topResources.length ? (
               <ol className={styles.list}>
-                {topResources.map((resource) => (
+                {topResources.slice(0, 6).map((resource) => (
                   <li key={resource.id}>
                     {resource.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -582,6 +633,37 @@ export default function DashboardPage() {
               </ol>
             ) : (
               <div className={styles.experiencesEmpty}>No experiences to display yet.</div>
+            )}
+          </section>
+        ) : activeSection === "Resources" ? (
+          <section className={styles.experiencesPanel}>
+            <div className={styles.experiencesHeading}>
+              <h2>Resources</h2>
+            </div>
+            {topResources.length ? (
+              <ol className={styles.resourceList}>
+                {topResources.map((resource) => (
+                  <li key={resource.id}>
+                    <div className={styles.experienceDetails}>
+                      <strong>{resource.name || resource.title || "Untitled resource"}</strong>
+                      <span>{resource.subject || resource.type || "Resource"}</span>
+                    </div>
+                    <div className={styles.rowActions} aria-label={`Actions for ${resource.name || resource.title || "resource"}`}>
+                      <button type="button" aria-label="Edit resource" onClick={() => openResourceForm(resource)}><EditIcon /></button>
+                      <button
+                        type="button"
+                        aria-label="Delete resource"
+                        onClick={() => {
+                          setResourceDeleteError("");
+                          setResourceToDelete(resource);
+                        }}
+                      ><DeleteIcon /></button>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <div className={styles.experiencesEmpty}>No resources to display yet.</div>
             )}
           </section>
         ) : (
@@ -753,8 +835,8 @@ export default function DashboardPage() {
 
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleGroup}>
-                <h2 id="resource-title">Upload a resource</h2>
-                <select name="subject" form="resource-form" aria-label="Resource subject category" defaultValue="" required>
+                <h2 id="resource-title">{editingResource ? "Edit resource" : "Upload a resource"}</h2>
+                <select name="subject" form="resource-form" aria-label="Resource subject category" defaultValue={editingResource?.subject || ""} required>
                   <option value="" disabled>Select subject category</option>
                   <option>Museums</option>
                   <option>Workshops</option>
@@ -773,11 +855,11 @@ export default function DashboardPage() {
               <div className={styles.resourceFields}>
                 <label>
                   <span>Resource title</span>
-                  <input name="title" required placeholder="e.g. Vikings: Raiders, Traders & Explorers" />
+                  <input name="title" required defaultValue={editingResource?.title || editingResource?.name || ""} placeholder="e.g. Vikings: Raiders, Traders & Explorers" />
                 </label>
                 <label>
                   <span>Age</span>
-                  <select name="ageRange" required defaultValue="">
+                  <select name="ageRange" required defaultValue={editingResource?.ageRange || ""}>
                     <option value="" disabled>Select age</option>
                     <option>3-5</option>
                     <option>5-7</option>
@@ -789,7 +871,7 @@ export default function DashboardPage() {
                 </label>
                 <label>
                   <span>Key Stage</span>
-                  <select name="keyStage" required defaultValue="">
+                  <select name="keyStage" required defaultValue={editingResource?.keyStage || ""}>
                     <option value="" disabled>Select key stage</option>
                     <option>Early Years</option>
                     <option>Key Stage 1</option>
@@ -804,19 +886,36 @@ export default function DashboardPage() {
               <div className={styles.resourceSide}>
                 <label>
                   <span>Pages</span>
-                  <input name="pages" type="number" min="1" required placeholder="1" />
+                  <input name="pages" type="number" min="1" required defaultValue={editingResource?.pages || ""} placeholder="1" />
                 </label>
                 <label className={styles.pdfUploadField}>
                   <input type="file" accept="application/pdf,.pdf" onChange={handleResourceFile} />
-                  <span>{resourceFile ? resourceFile.name : "Click to upload PDF"}</span>
+                  <span>{resourceFile ? resourceFile.name : editingResource?.fileName || "Click to upload PDF"}</span>
                 </label>
               </div>
 
               {resourceError && <p className={styles.resourceError} role="alert">{resourceError}</p>}
               <button className={styles.submitExperience} type="submit" disabled={resourceSaving}>
-                {resourceSaving ? resourceSaveStep : "Create resource"}
+                {resourceSaving ? resourceSaveStep : editingResource ? "Save changes" : "Create resource"}
               </button>
             </form>
+          </section>
+        </div>
+      )}
+
+      {resourceToDelete && (
+        <div className={styles.modalOverlay} role="presentation">
+          <section className={styles.deleteDialog} role="alertdialog" aria-modal="true" aria-labelledby="delete-resource-title">
+            <span className={styles.deleteDialogIcon}><DeleteIcon /></span>
+            <h2 id="delete-resource-title">Delete resource?</h2>
+            <p>Are you sure you want to delete <strong>{resourceToDelete.name || resourceToDelete.title || "this resource"}</strong>? This action cannot be undone.</p>
+            {resourceDeleteError && <p className={styles.deleteError} role="alert">{resourceDeleteError}</p>}
+            <div className={styles.deleteDialogActions}>
+              <button type="button" onClick={() => setResourceToDelete(null)} disabled={resourceDeleting}>Cancel</button>
+              <button className={styles.confirmDeleteButton} type="button" onClick={handleDeleteResource} disabled={resourceDeleting}>
+                {resourceDeleting ? "Deleting..." : "Delete resource"}
+              </button>
+            </div>
           </section>
         </div>
       )}

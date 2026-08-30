@@ -37,6 +37,9 @@
 .experiencesList { margin: 0; padding: 0; list-style: none; counter-reset: experience; }
 .experiencesList li { counter-increment: experience; min-height: 67px; display: grid; grid-template-columns: 28px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0; padding: 9px 20px; border-bottom: 1px solid #d9ddda; }
 .experiencesList li::before { content: counter(experience) "."; font-size: 13px; text-align: right; }
+.resourceList { margin: 0; padding: 0; list-style: none; counter-reset: resource; }
+.resourceList li { counter-increment: resource; min-height: 67px; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 0; padding: 9px 20px; border-bottom: 1px solid #d9ddda; }
+.resourceList li::before { content: counter(resource) "."; font-size: 13px; text-align: right; }
 .experienceThumbnail, .experienceThumbnailPlaceholder { width: 34px; height: 34px; display: block; object-fit: cover; background: #d8ddda; }
 .experienceDetails { min-width: 0; }
 .experienceDetails strong, .experienceDetails span { display: block; }
@@ -154,5 +157,6 @@
   .experiencesHeading { display: block; padding-inline: 10px; }
   .experiencesHeading p { margin-top: 7px; line-height: 1.4; }
   .experiencesList li { grid-template-columns: 24px 36px minmax(0, 1fr) auto; gap: 8px; padding-inline: 8px; }
+  .resourceList li { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; padding-inline: 8px; }
   .rowActions { gap: 3px; padding-left: 4px; }
 }
