@@ -7,33 +7,58 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import {
   collection,
   addDoc,
+  deleteDoc,
+  doc,
   getCountFromServer,
   getDocs,
   limit,
   orderBy,
   query,
   serverTimestamp,
+  updateDoc,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import { getFirebaseAuth, getFirebaseDatabase, getFirebaseStorage } from "../../lib/firebase";
 import classmatesIcon from "../../asset/classmatesicon.png";
 import overviewIcon from "../../asset/overviewIcon.png";
 import experiencesIcon from "../../asset/experiencesIcon.png";
-import resourcesIcon from "../../asset/resourcesIcon.png";
-import flagReportsIcon from "../../asset/flagreportsIcon.png";
+import experiencesSelectedIcon from "../../asset/experiencesSelectedIcon.png";
+import resourcesIcon from "../../asset/resourcesIocn.png";
+import resourcesSelectedIcon from "../../asset/resourcesIconSelected.png";
+import flagReportsIcon from "../../asset/flagreportsicon.png";
+import flagReportsSelectedIcon from "../../asset/flagreportsselectedicon.png";
 import settingsIcon from "../../asset/Vector (1).png";
+import settingsSelectedIcon from "../../asset/settingIcon.png";
 import styles from "./dashboard.module.css";
 
 const menuItems = [
-  [overviewIcon, "Overview"],
-  [experiencesIcon, "Experiences"],
-  [resourcesIcon, "Resources"],
-  [flagReportsIcon, "Flag reports"],
-  [settingsIcon, "Settings"],
+  { icon: overviewIcon, selectedIcon: overviewIcon, label: "Overview" },
+  { icon: experiencesIcon, selectedIcon: experiencesSelectedIcon, label: "Experiences" },
+  { icon: resourcesIcon, selectedIcon: resourcesSelectedIcon, label: "Resources" },
+  { icon: flagReportsIcon, selectedIcon: flagReportsSelectedIcon, label: "Flag reports" },
+  { icon: settingsIcon, selectedIcon: settingsSelectedIcon, label: "Settings" },
 ];
+
+function EditIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 20h4l11-11-4-4L4 16v4Zm9.5-13.5 4 4" />
+    </svg>
+  );
+}
+
+function DeleteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v5m4-5v5" />
+    </svg>
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [activeSection, setActiveSection] = useState("Overview");
+  const [hoveredSection, setHoveredSection] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [counts, setCounts] = useState({
     users: "—",
@@ -45,12 +70,16 @@ export default function DashboardPage() {
   const [topResources, setTopResources] = useState([]);
   const [dataNotice, setDataNotice] = useState("");
   const [experienceType, setExperienceType] = useState(null);
+  const [editingExperience, setEditingExperience] = useState(null);
   const [experienceGuidance, setExperienceGuidance] = useState("Self-led");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [thumbnailFile, setThumbnailFile] = useState(null);
   const [experienceSaving, setExperienceSaving] = useState(false);
   const [experienceSaveStep, setExperienceSaveStep] = useState("");
   const [experienceError, setExperienceError] = useState("");
+  const [experienceToDelete, setExperienceToDelete] = useState(null);
+  const [experienceDeleting, setExperienceDeleting] = useState(false);
+  const [experienceDeleteError, setExperienceDeleteError] = useState("");
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
   const [resourceFile, setResourceFile] = useState(null);
   const [resourceSaving, setResourceSaving] = useState(false);
@@ -79,7 +108,7 @@ export default function DashboardPage() {
             )
           ),
           Promise.allSettled([
-            getDocs(query(collection(database, "experiences"), orderBy("createdAt", "desc"), limit(6))),
+            getDocs(query(collection(database, "experiences"), orderBy("createdAt", "desc"))),
             getDocs(query(collection(database, "resources"), orderBy("createdAt", "desc"), limit(6))),
           ]),
         ]);
@@ -125,18 +154,29 @@ export default function DashboardPage() {
   }
 
   function openExperienceForm(type) {
+    setEditingExperience(null);
     setExperienceGuidance("Self-led");
     setExperienceType(type);
   }
 
+  function openExperienceEditor(experience) {
+    setEditingExperience(experience);
+    setExperienceGuidance(experience.guidanceType || experience.type || "Self-led");
+    setThumbnailUrl(experience.thumbnailUrl || "");
+    setThumbnailFile(null);
+    setExperienceError("");
+    setExperienceType(experience.category || "Experience");
+  }
+
   function closeExperienceForm() {
     setExperienceType(null);
-    if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
+    if (thumbnailUrl.startsWith("blob:")) URL.revokeObjectURL(thumbnailUrl);
     setThumbnailUrl("");
     setThumbnailFile(null);
     setExperienceError("");
     setExperienceSaveStep("");
     setExperienceGuidance("Self-led");
+    setEditingExperience(null);
   }
 
   function handleThumbnail(event) {
@@ -156,7 +196,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (thumbnailUrl) URL.revokeObjectURL(thumbnailUrl);
+    if (thumbnailUrl.startsWith("blob:")) URL.revokeObjectURL(thumbnailUrl);
     setThumbnailFile(file);
     setThumbnailUrl(URL.createObjectURL(file));
   }
@@ -169,7 +209,7 @@ export default function DashboardPage() {
 
     try {
       const formData = new FormData(event.currentTarget);
-      let uploadedThumbnailUrl = "";
+      let uploadedThumbnailUrl = editingExperience?.thumbnailUrl || "";
 
       if (thumbnailFile) {
         const safeFileName = thumbnailFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -191,7 +231,7 @@ export default function DashboardPage() {
 
       setExperienceSaveStep("Saving experience...");
       const isFree = formData.get("isFree") === "Yes";
-      await addDoc(collection(getFirebaseDatabase(), "experiences"), {
+      const experienceDocument = {
         type: formData.get("guidanceType"),
         guidanceType: formData.get("guidanceType"),
         category: formData.get("category"),
@@ -208,13 +248,42 @@ export default function DashboardPage() {
         bookingLink: formData.get("bookingLink")?.trim() || "",
         thumbnailUrl: uploadedThumbnailUrl,
         status: "published",
-        createdBy: getFirebaseAuth().currentUser?.uid || "",
-        createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      });
+      };
+
+      if (editingExperience) {
+        await updateDoc(
+          doc(getFirebaseDatabase(), "experiences", editingExperience.id),
+          experienceDocument
+        );
+        setTopExperiences((items) =>
+          items.map((item) =>
+            item.id === editingExperience.id
+              ? { ...item, ...experienceDocument, id: item.id }
+              : item
+          )
+        );
+      } else {
+        const createdExperience = await addDoc(
+          collection(getFirebaseDatabase(), "experiences"),
+          {
+            ...experienceDocument,
+            createdBy: getFirebaseAuth().currentUser?.uid || "",
+            createdAt: serverTimestamp(),
+          }
+        );
+        setTopExperiences((items) => [
+          { id: createdExperience.id, ...experienceDocument },
+          ...items,
+        ]);
+      }
 
       closeExperienceForm();
-      setDataNotice("Experience created successfully. It is now available to the mobile app.");
+      setDataNotice(
+        editingExperience
+          ? "Experience updated successfully."
+          : "Experience created successfully. It is now available to the mobile app."
+      );
     } catch (error) {
       setExperienceError(
         error.message === "storage-timeout"
@@ -230,6 +299,32 @@ export default function DashboardPage() {
     } finally {
       setExperienceSaving(false);
       setExperienceSaveStep("");
+    }
+  }
+
+  async function handleDeleteExperience() {
+    if (!experienceToDelete) return;
+
+    setExperienceDeleting(true);
+    setExperienceDeleteError("");
+
+    try {
+      await deleteDoc(
+        doc(getFirebaseDatabase(), "experiences", experienceToDelete.id)
+      );
+      setTopExperiences((items) =>
+        items.filter((item) => item.id !== experienceToDelete.id)
+      );
+      setDataNotice("Experience deleted successfully.");
+      setExperienceToDelete(null);
+    } catch (error) {
+      setExperienceDeleteError(
+        error.code === "permission-denied"
+          ? "Firebase blocked this delete. Check the Firestore admin rules."
+          : "Unable to delete the experience. Please try again."
+      );
+    } finally {
+      setExperienceDeleting(false);
     }
   }
 
@@ -344,18 +439,33 @@ export default function DashboardPage() {
           >
             Add an experience <span>+</span>
           </button>
-          <button className={styles.createAction} type="button" onClick={() => setResourceModalOpen(true)}>
-            Add a resource <span>+</span>
-          </button>
+          {activeSection !== "Experiences" && (
+            <button className={styles.createAction} type="button" onClick={() => setResourceModalOpen(true)}>
+              Add a resource <span>+</span>
+            </button>
+          )}
           <button className={styles.logoutButton} onClick={handleLogout}>Log out</button>
         </div>
       </header>
 
       <aside className={styles.sidebar}>
         <nav>
-          {menuItems.map(([icon, label], index) => (
-            <button className={index === 0 ? styles.activeMenu : ""} key={label}>
-              <span><Image src={icon} alt="" /></span>{label}
+          {menuItems.map(({ icon, selectedIcon, label }) => (
+            <button
+              className={activeSection === label ? styles.activeMenu : ""}
+              key={label}
+              type="button"
+              onClick={() => setActiveSection(label)}
+              onMouseEnter={() => setHoveredSection(label)}
+              onMouseLeave={() => setHoveredSection(null)}
+            >
+              <span>
+                <Image
+                  src={activeSection === label || hoveredSection === label ? selectedIcon : icon}
+                  alt=""
+                />
+              </span>
+              {label}
             </button>
           ))}
         </nav>
@@ -366,13 +476,13 @@ export default function DashboardPage() {
 
       <section className={styles.content}>
         <div className={styles.titleBand}>
-          <p>Admin dashboard</p>
-          <h1>Overview</h1>
+          {activeSection === "Overview" && <p>Admin dashboard</p>}
+          <h1>{activeSection}</h1>
         </div>
 
         {dataNotice && <p className={styles.notice}>{dataNotice}</p>}
 
-        <div className={styles.stats}>
+        {activeSection === "Overview" ? <><div className={styles.stats}>
           <article><span>Total users</span><strong>{counts.users}</strong><small>Live from Firebase</small></article>
           <article><span>Total posts</span><strong>{counts.posts}</strong><small>Live from Firebase</small></article>
           <article><span>Post reports</span><strong>{counts.postReports}</strong><small>Live from Firebase</small></article>
@@ -387,7 +497,7 @@ export default function DashboardPage() {
             </div>
             {topExperiences.length ? (
               <ol className={styles.list}>
-                {topExperiences.map((experience) => (
+                {topExperiences.slice(0, 6).map((experience) => (
                   <li key={experience.id}>
                     {experience.thumbnailUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -432,7 +542,54 @@ export default function DashboardPage() {
               <div className={styles.empty}>No resources to display yet.</div>
             )}
           </article>
-        </div>
+        </div></> : activeSection === "Experiences" ? (
+          <section className={styles.experiencesPanel}>
+            <div className={styles.experiencesHeading}>
+              <h2>Experiences</h2>
+              <p>Experiences are ranked by how many users have selected ‘Done’</p>
+            </div>
+            {topExperiences.length ? (
+              <ol className={styles.experiencesList}>
+                {[...topExperiences]
+                  .sort((a, b) => (b.doneCount || b.completedCount || 0) - (a.doneCount || a.completedCount || 0))
+                  .map((experience) => (
+                    <li key={experience.id}>
+                      {experience.thumbnailUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className={styles.experienceThumbnail} src={experience.thumbnailUrl} alt="" />
+                      ) : (
+                        <span className={styles.experienceThumbnailPlaceholder} />
+                      )}
+                      <div className={styles.experienceDetails}>
+                        <strong>{experience.name || "Untitled experience"}</strong>
+                        <span>{experience.category || experience.subject || experience.type || "Experience"}</span>
+                      </div>
+                      <div className={styles.rowActions} aria-label={`Actions for ${experience.name || "experience"}`}>
+                        <button type="button" aria-label="Edit experience" onClick={() => openExperienceEditor(experience)}><EditIcon /></button>
+                        <button
+                          type="button"
+                          aria-label="Delete experience"
+                          onClick={() => {
+                            setExperienceDeleteError("");
+                            setExperienceToDelete(experience);
+                          }}
+                        >
+                          <DeleteIcon />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+              </ol>
+            ) : (
+              <div className={styles.experiencesEmpty}>No experiences to display yet.</div>
+            )}
+          </section>
+        ) : (
+          <section className={styles.sectionPlaceholder}>
+            <h2>{activeSection}</h2>
+            <p>This section is ready for its content.</p>
+          </section>
+        )}
       </section>
 
       {experienceType && (
@@ -447,18 +604,16 @@ export default function DashboardPage() {
             )}
             <div className={styles.modalHeader}>
               <div className={styles.modalTitleGroup}>
-                <h2 id="experience-title">Create new experience</h2>
-                <select name="category" form="experience-form" aria-label="Experience type" defaultValue="" required>
+                <h2 id="experience-title">{editingExperience ? "Edit experience" : "Create new experience"}</h2>
+                <select name="category" form="experience-form" aria-label="Experience type" defaultValue={editingExperience?.category || ""} required>
                   <option value="" disabled>Experience type</option>
                   <option>Museums</option>
                   <option>Making</option>
                   <option>Nature</option>
-                  <option>History</option>
-                  <option>Arts</option>
-                  <option>Science</option>
-                  <option>Sport</option>
-                  <option>Places</option>
-                  <option>Culture</option>
+                  <option>Heritage</option>
+                  <option>Creative</option>
+                  <option>Discovery</option>
+                  <option>Active</option>
                   <option>Explore</option>
                 </select>
               </div>
@@ -468,19 +623,19 @@ export default function DashboardPage() {
             <form id="experience-form" className={styles.experienceForm} onSubmit={handleCreateExperience}>
               <label>
                 <span>Experience name</span>
-                <input name="name" required placeholder={experienceType === "Place" ? "eg. Natural History Museum" : "eg. Science discovery workshop"} />
+                <input name="name" required defaultValue={editingExperience?.name || ""} placeholder={experienceType === "Place" ? "eg. Natural History Museum" : "eg. Science discovery workshop"} />
               </label>
               <label>
                 <span>{experienceType === "Place" ? "Hours" : "Date & time"}</span>
-                <input name="schedule" required placeholder={experienceType === "Place" ? "Mon - Friday 10am - 5pm" : "Saturday 10am - 2pm"} />
+                <input name="schedule" required defaultValue={editingExperience?.schedule || ""} placeholder={experienceType === "Place" ? "Mon - Friday 10am - 5pm" : "Saturday 10am - 2pm"} />
               </label>
               <label>
                 <span>{experienceType === "Place" ? "Location link" : "Location"}</span>
-                <input name="location" required placeholder={experienceType === "Place" ? "Paste map or website link" : "Type in location"} />
+                <input name="location" required defaultValue={editingExperience?.location || ""} placeholder={experienceType === "Place" ? "Paste map or website link" : "Type in location"} />
               </label>
               <label>
                 <span>Hosted by</span>
-                <input name="hostedBy" required placeholder="Name of organisation/company" />
+                <input name="hostedBy" required defaultValue={editingExperience?.hostedBy || ""} placeholder="Name of organisation/company" />
               </label>
               <label>
                 <span>Experience type</span>
@@ -496,7 +651,7 @@ export default function DashboardPage() {
               </label>
               <label>
                 <span>Subject</span>
-                <select name="subject" defaultValue="" required>
+                <select name="subject" defaultValue={editingExperience?.subject || ""} required>
                   <option value="" disabled>Select a subject</option>
                   <option>Maths</option>
                   <option>English</option>
@@ -517,6 +672,7 @@ export default function DashboardPage() {
                 <textarea
                   name="description"
                   required
+                  defaultValue={editingExperience?.description || ""}
                   placeholder={experienceGuidance === "Guided" ? "Add bullet points describing what to expect." : "Add bullet points for things families can try while they are there."}
                 />
               </label>
@@ -531,18 +687,55 @@ export default function DashboardPage() {
               </label>
 
               <div className={styles.formOptions}>
-                <label><span>Recommended age</span><select name="ageRange" required defaultValue=""><option value="" disabled>Select age</option><option>2-4 years</option><option>5-7 years</option><option>8-11 years</option><option>12-18 years</option><option>All ages</option></select></label>
-                <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue=""><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
-                <label><span>Is it free?</span><select name="isFree" required defaultValue=""><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
-                <label><span>Price</span><input name="price" type="number" min="0" step="0.01" placeholder="£00.00" /></label>
-                <label><span>Booking Link</span><input name="bookingLink" type="url" placeholder="Paste booking link for book CTA" /></label>
+                <label><span>Recommended age</span><select name="ageRange" required defaultValue={editingExperience?.ageRange || ""}><option value="" disabled>Select age</option><option>2-4 years</option><option>5-7 years</option><option>8-11 years</option><option>12-18 years</option><option>All ages</option></select></label>
+                <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue={editingExperience?.environment || ""}><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
+                <label><span>Is it free?</span><select name="isFree" required defaultValue={editingExperience ? (editingExperience.isFree ? "Yes" : "No") : ""}><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
+                <label><span>Price</span><input name="price" type="number" min="0" step="0.01" defaultValue={editingExperience?.price ?? ""} placeholder="£00.00" /></label>
+                <label><span>Booking Link</span><input name="bookingLink" type="url" defaultValue={editingExperience?.bookingLink || ""} placeholder="Paste booking link for book CTA" /></label>
               </div>
 
               {experienceError && <p className={styles.experienceError} role="alert">{experienceError}</p>}
               <button className={styles.submitExperience} type="submit" disabled={experienceSaving}>
-                {experienceSaving ? experienceSaveStep : "Create experience"}
+                {experienceSaving ? experienceSaveStep : editingExperience ? "Save changes" : "Create experience"}
               </button>
             </form>
+          </section>
+        </div>
+      )}
+
+      {experienceToDelete && (
+        <div className={styles.modalOverlay} role="presentation">
+          <section
+            className={styles.deleteDialog}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-experience-title"
+            aria-describedby="delete-experience-description"
+          >
+            <span className={styles.deleteDialogIcon}><DeleteIcon /></span>
+            <h2 id="delete-experience-title">Delete experience?</h2>
+            <p id="delete-experience-description">
+              Are you sure you want to delete <strong>{experienceToDelete.name || "this experience"}</strong>?
+              This action cannot be undone.
+            </p>
+            {experienceDeleteError && <p className={styles.deleteError} role="alert">{experienceDeleteError}</p>}
+            <div className={styles.deleteDialogActions}>
+              <button
+                type="button"
+                onClick={() => setExperienceToDelete(null)}
+                disabled={experienceDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.confirmDeleteButton}
+                type="button"
+                onClick={handleDeleteExperience}
+                disabled={experienceDeleting}
+              >
+                {experienceDeleting ? "Deleting..." : "Delete experience"}
+              </button>
+            </div>
           </section>
         </div>
       )}
