@@ -231,8 +231,8 @@ export default function DashboardPage() {
       return;
     }
 
-    if (file.size >= 10 * 1024 * 1024) {
-      setExperienceError("The thumbnail must be smaller than 10MB.");
+    if (file.size >= 20 * 1024 * 1024) {
+      setExperienceError("The thumbnail must be smaller than 20MB.");
       event.target.value = "";
       return;
     }
@@ -330,7 +330,7 @@ export default function DashboardPage() {
         error.message === "storage-timeout"
           ? "Thumbnail upload timed out. Check that Firebase Storage is enabled and its rules are published."
           : error.code === "storage/unauthorized"
-          ? "Thumbnail upload was denied. Confirm the Storage rules are published, the image is under 10MB, and you are logged in with the configured admin email."
+          ? "Thumbnail upload was denied. Confirm the Storage rules are published, the image is under 20MB, and you are logged in with the configured admin email."
           : error.code?.startsWith("storage/")
             ? `Thumbnail upload failed: ${error.code}. Check Firebase Storage setup.`
           : error.code === "permission-denied"

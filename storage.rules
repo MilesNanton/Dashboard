@@ -14,7 +14,7 @@ service firebase.storage {
     match /experiences/{fileName} {
       allow read: if signedIn();
       allow create, update: if isAdmin()
-        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.size < 20 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
       allow delete: if isAdmin();
     }
