@@ -11,6 +11,19 @@ service firebase.storage {
         && request.auth.token.email == 'milesnantonfloat@gmail.com';
     }
 
+    match /users/{userId}/experienceDocumentation/{experienceId}/{fileName} {
+      allow read: if signedIn()
+        && request.auth.uid == userId;
+
+      allow create, update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+
+      allow delete: if signedIn()
+        && request.auth.uid == userId;
+    }
+
     match /experiences/{fileName} {
       allow read: if signedIn();
       allow create, update: if isAdmin()

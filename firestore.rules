@@ -187,6 +187,49 @@ service cloud.firestore {
         && request.resource.data.locationSharingEnabled is bool
         && request.resource.data.updatedAt == request.time;
 
+      // Community settings can update child ages and location discovery.
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'childCount',
+            'childAges',
+            'locationSharingEnabled',
+            'discoveryRadius',
+            'updatedAt'
+          ])
+        && request.resource.data.childCount is int
+        && request.resource.data.childCount >= 1
+        && request.resource.data.childCount <= 4
+        && hasValidChildAges()
+        && request.resource.data.locationSharingEnabled is bool
+        && request.resource.data.discoveryRadius == 'Anywhere in the UK'
+        && request.resource.data.updatedAt == request.time;
+
+      // Profile settings can update the avatar colour and homeschool style.
+      allow update: if isOwner()
+        && request.resource.data.diff(resource.data)
+          .affectedKeys()
+          .hasOnly([
+            'avatarColorIndex',
+            'homeschoolApproach',
+            'updatedAt'
+          ])
+        && request.resource.data.avatarColorIndex is int
+        && request.resource.data.avatarColorIndex >= 0
+        && request.resource.data.avatarColorIndex <= 3
+        && request.resource.data.homeschoolApproach is string
+        && request.resource.data.homeschoolApproach in [
+          'Traditional',
+          'Charlotte Mason',
+          'Montessori',
+          'Classical Education',
+          'Unschooling',
+          'Unit Studies',
+          'Other'
+        ]
+        && request.resource.data.updatedAt == request.time;
+
       allow delete: if isOwner() || isAdmin();
 
       match /parents/{parentId} {
@@ -214,6 +257,43 @@ service cloud.firestore {
           && request.resource.data.addedAt == request.time;
         allow update: if false;
         allow delete: if isOwner();
+      }
+
+      match /completedExperiences/{experienceId} {
+        allow read, delete: if isOwner();
+        allow create: if isOwner()
+          && request.resource.data.keys().hasOnly([
+            'experienceId',
+            'name',
+            'hostedBy',
+            'location',
+            'category',
+            'subject',
+            'isCustom',
+            'completedAt'
+          ])
+          && request.resource.data.experienceId == experienceId
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.name.size() <= 100
+          && (!('location' in request.resource.data)
+            || (request.resource.data.location is string
+              && request.resource.data.location.size() <= 200))
+          && (!('isCustom' in request.resource.data)
+            || request.resource.data.isCustom is bool)
+          && request.resource.data.completedAt == request.time;
+
+        allow update: if isOwner()
+          && request.resource.data.diff(resource.data)
+            .affectedKeys()
+            .hasOnly(['note', 'photoPath', 'documentationUpdatedAt'])
+          && (!('note' in request.resource.data)
+            || (request.resource.data.note is string
+              && request.resource.data.note.size() <= 1000))
+          && (!('photoPath' in request.resource.data)
+            || (request.resource.data.photoPath is string
+              && request.resource.data.photoPath.size() <= 500))
+          && request.resource.data.documentationUpdatedAt == request.time;
       }
     }
 
@@ -413,12 +493,14 @@ service cloud.firestore {
     }
 
     match /experiences/{experienceId} {
-      allow read: if signedIn();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.status == 'published');
       allow create, update, delete: if isAdmin();
     }
 
     match /resources/{resourceId} {
-      allow read: if signedIn();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.status == 'published');
       allow create, update, delete: if isAdmin();
     }
 

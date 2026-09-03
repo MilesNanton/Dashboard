@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "deploy:storage-rules": "firebase deploy --only storage --project $NEXT_PUBLIC_FIREBASE_PROJECT_ID"
   },
   "dependencies": {
     "firebase": "^12.17.1",

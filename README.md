@@ -19,6 +19,22 @@ Then open `http://localhost:3000` in your browser.
 4. Copy the values from your Firebase Web App configuration into `.env.local`.
 5. Restart the development server with `npm run dev`.
 
+## Publish Firebase Storage rules
+
+The Storage rules file in this repository does not take effect until it is
+deployed to Firebase. Load the variables from `.env.local`, then publish it:
+
+```bash
+set -a
+source .env.local
+set +a
+npm run deploy:storage-rules
+```
+
+Run this again whenever `storage.rules` changes. Review and synchronize the
+Firestore rules separately before deploying them, because the mobile app may
+have newer Firestore rules than this dashboard repository.
+
 ## Important files
 
 - `app/page.js` — the content and structure of the home page
