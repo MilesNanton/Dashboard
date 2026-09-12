@@ -279,6 +279,7 @@ export default function DashboardPage() {
         subject: formData.get("subject"),
         name: formData.get("name").trim(),
         schedule: formData.get("schedule").trim(),
+        assemblyDetails: formData.get("assemblyDetails")?.trim() || "",
         location: formData.get("location").trim(),
         hostedBy: formData.get("hostedBy").trim(),
         description: formData.get("description").trim(),
@@ -824,6 +825,14 @@ export default function DashboardPage() {
               <label>
                 <span>{experienceType === "Place" ? "Hours" : "Date & time"}</span>
                 <input name="schedule" required defaultValue={editingExperience?.schedule || ""} placeholder={experienceType === "Place" ? "Mon - Friday 10am - 5pm" : "Saturday 10am - 2pm"} />
+              </label>
+              <label>
+                <span>Assembly details (optional)</span>
+                <input
+                  name="assemblyDetails"
+                  defaultValue={editingExperience?.assemblyDetails || ""}
+                  placeholder="Main entrance - Monday 12th June"
+                />
               </label>
               <label>
                 <span>{experienceType === "Place" ? "Location link" : "Location"}</span>
