@@ -444,7 +444,6 @@ export default function DashboardPage() {
         subject: formData.get("subject"),
         pages: Number(formData.get("pages")),
         ageRange: formData.get("ageRange"),
-        keyStage: formData.get("keyStage"),
         pdfUrl,
         fileName,
         status: "published",
@@ -804,14 +803,14 @@ export default function DashboardPage() {
                 <h2 id="experience-title">{editingExperience ? "Edit experience" : "Create new experience"}</h2>
                 <select name="category" form="experience-form" aria-label="Experience type" defaultValue={editingExperience?.category || ""} required>
                   <option value="" disabled>Experience type</option>
-                  <option>Museums</option>
-                  <option>Making</option>
+                  <option>Museum</option>
+                  <option>Workshops</option>
                   <option>Nature</option>
-                  <option>Heritage</option>
-                  <option>Creative</option>
-                  <option>Discovery</option>
-                  <option>Active</option>
-                  <option>Explore</option>
+                  <option>History</option>
+                  <option>Arts</option>
+                  <option>Science</option>
+                  <option>Sport</option>
+                  <option>Places</option>
                 </select>
               </div>
               <button className={styles.closeButton} type="button" onClick={closeExperienceForm}>Close</button>
@@ -892,7 +891,7 @@ export default function DashboardPage() {
               </label>
 
               <div className={styles.formOptions}>
-                <label><span>Recommended age</span><select name="ageRange" required defaultValue={editingExperience?.ageRange || ""}><option value="" disabled>Select age</option><option>7-11</option><option>11-14</option><option>14-16</option></select></label>
+                <label><span>Recommended age</span><select name="ageRange" required defaultValue={editingExperience?.ageRange || ""}><option value="" disabled>Select age</option><option>5-7</option><option>8-11</option><option>11-14</option><option>14-16</option></select></label>
                 <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue={editingExperience?.environment || ""}><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
                 <label><span>Is it free?</span><select name="isFree" required defaultValue={editingExperience ? (editingExperience.isFree ? "Yes" : "No") : ""}><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
                 <label><span>Price</span><input name="price" type="number" min="0" step="0.01" defaultValue={editingExperience?.price ?? ""} placeholder="£00.00" /></label>
@@ -988,24 +987,11 @@ export default function DashboardPage() {
                   <span>Age</span>
                   <select name="ageRange" required defaultValue={editingResource?.ageRange || ""}>
                     <option value="" disabled>Select age</option>
-                    <option>3-5</option>
                     <option>5-7</option>
                     <option>7-11</option>
                     <option>11-14</option>
-                    <option>14-18</option>
+                    <option>14-16</option>
                     <option>All ages</option>
-                  </select>
-                </label>
-                <label>
-                  <span>Key Stage</span>
-                  <select name="keyStage" required defaultValue={editingResource?.keyStage || ""}>
-                    <option value="" disabled>Select key stage</option>
-                    <option>Early Years</option>
-                    <option>Key Stage 1</option>
-                    <option>Key Stage 2</option>
-                    <option>Key Stage 3</option>
-                    <option>Key Stage 4</option>
-                    <option>Post-16</option>
                   </select>
                 </label>
               </div>
