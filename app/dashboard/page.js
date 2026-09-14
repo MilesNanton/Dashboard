@@ -892,7 +892,7 @@ export default function DashboardPage() {
               </label>
 
               <div className={styles.formOptions}>
-                <label><span>Recommended age</span><select name="ageRange" required defaultValue={editingExperience?.ageRange || ""}><option value="" disabled>Select age</option><option>2-4 years</option><option>5-7 years</option><option>8-11 years</option><option>12-18 years</option><option>All ages</option></select></label>
+                <label><span>Recommended age</span><select name="ageRange" required defaultValue={editingExperience?.ageRange || ""}><option value="" disabled>Select age</option><option>7-11</option><option>11-14</option><option>14-16</option></select></label>
                 <label><span>Indoor/Outdoor</span><select name="environment" required defaultValue={editingExperience?.environment || ""}><option value="" disabled>Select</option><option>Indoor</option><option>Outdoor</option><option>Both</option></select></label>
                 <label><span>Is it free?</span><select name="isFree" required defaultValue={editingExperience ? (editingExperience.isFree ? "Yes" : "No") : ""}><option value="" disabled>Select</option><option>Yes</option><option>No</option></select></label>
                 <label><span>Price</span><input name="price" type="number" min="0" step="0.01" defaultValue={editingExperience?.price ?? ""} placeholder="£00.00" /></label>
@@ -961,14 +961,18 @@ export default function DashboardPage() {
                 <h2 id="resource-title">{editingResource ? "Edit resource" : "Upload a resource"}</h2>
                 <select name="subject" form="resource-form" aria-label="Resource subject category" defaultValue={editingResource?.subject || ""} required>
                   <option value="" disabled>Select subject category</option>
-                  <option>Museums</option>
-                  <option>Workshops</option>
-                  <option>Nature</option>
-                  <option>Arts</option>
-                  <option>STEM</option>
-                  <option>Sport</option>
-                  <option>Culture</option>
-                  <option>Other</option>
+                  <option>English</option>
+                  <option>Maths</option>
+                  <option>Science</option>
+                  <option>History</option>
+                  <option>Geography</option>
+                  <option>Art</option>
+                  <option>Computing</option>
+                  <option>Religious</option>
+                  <option>Music</option>
+                  <option>Languages</option>
+                  <option>Life Skills</option>
+                  <option>P.E</option>
                 </select>
               </div>
               <button className={styles.closeButton} type="button" onClick={closeResourceForm}>Close</button>
