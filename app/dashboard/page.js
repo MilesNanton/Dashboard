@@ -87,6 +87,7 @@ export default function DashboardPage() {
   const [resourceModalOpen, setResourceModalOpen] = useState(false);
   const [editingResource, setEditingResource] = useState(null);
   const [resourceFile, setResourceFile] = useState(null);
+  const [resourceThumbnailFile, setResourceThumbnailFile] = useState(null);
   const [resourceSaving, setResourceSaving] = useState(false);
   const [resourceSaveStep, setResourceSaveStep] = useState("");
   const [resourceError, setResourceError] = useState("");
@@ -373,6 +374,7 @@ export default function DashboardPage() {
   function openResourceForm(resource = null) {
     setEditingResource(resource);
     setResourceFile(null);
+    setResourceThumbnailFile(null);
     setResourceError("");
     setResourceModalOpen(true);
   }
@@ -381,6 +383,7 @@ export default function DashboardPage() {
     setResourceModalOpen(false);
     setEditingResource(null);
     setResourceFile(null);
+    setResourceThumbnailFile(null);
     setResourceError("");
     setResourceSaveStep("");
   }
@@ -405,6 +408,26 @@ export default function DashboardPage() {
     setResourceFile(file);
   }
 
+  function handleResourceThumbnail(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setResourceError("");
+
+    if (!file.type.startsWith("image/")) {
+      setResourceError("Please select a valid preview image.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size >= 10 * 1024 * 1024) {
+      setResourceError("The preview image must be smaller than 10MB.");
+      event.target.value = "";
+      return;
+    }
+
+    setResourceThumbnailFile(file);
+  }
+
   async function handleCreateResource(event) {
     event.preventDefault();
     if (!resourceFile && !editingResource) {
@@ -420,6 +443,7 @@ export default function DashboardPage() {
       const formData = new FormData(event.currentTarget);
       let pdfUrl = editingResource?.pdfUrl || "";
       let fileName = editingResource?.fileName || "";
+      let resourceThumbnailUrl = editingResource?.thumbnailUrl || "";
 
       if (resourceFile) {
         const safeFileName = resourceFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
@@ -437,6 +461,21 @@ export default function DashboardPage() {
         fileName = resourceFile.name;
       }
 
+      if (resourceThumbnailFile) {
+        setResourceSaveStep("Uploading preview...");
+        const safePreviewName = resourceThumbnailFile.name.replace(/[^a-zA-Z0-9._-]/g, "-");
+        const previewStorageReference = ref(
+          getFirebaseStorage(),
+          `resources/previews/${Date.now()}-${safePreviewName}`
+        );
+        const previewUploadResult = await uploadBytes(
+          previewStorageReference,
+          resourceThumbnailFile,
+          { contentType: resourceThumbnailFile.type }
+        );
+        resourceThumbnailUrl = await getDownloadURL(previewUploadResult.ref);
+      }
+
       setResourceSaveStep("Saving resource...");
       const resourceDocument = {
         title: formData.get("title").trim(),
@@ -446,6 +485,7 @@ export default function DashboardPage() {
         ageRange: formData.get("ageRange"),
         pdfUrl,
         fileName,
+        thumbnailUrl: resourceThumbnailUrl,
         status: "published",
         updatedAt: serverTimestamp(),
       };
@@ -960,18 +1000,14 @@ export default function DashboardPage() {
                 <h2 id="resource-title">{editingResource ? "Edit resource" : "Upload a resource"}</h2>
                 <select name="subject" form="resource-form" aria-label="Resource subject category" defaultValue={editingResource?.subject || ""} required>
                   <option value="" disabled>Select subject category</option>
-                  <option>English</option>
-                  <option>Maths</option>
-                  <option>Science</option>
-                  <option>History</option>
-                  <option>Geography</option>
-                  <option>Art</option>
-                  <option>Computing</option>
-                  <option>Religious</option>
-                  <option>Music</option>
-                  <option>Languages</option>
-                  <option>Life Skills</option>
-                  <option>P.E</option>
+                  <option>Museums</option>
+                  <option>Workshops</option>
+                  <option>Nature</option>
+                  <option>Arts</option>
+                  <option>STEM</option>
+                  <option>Sport</option>
+                  <option>Culture</option>
+                  <option>Other</option>
                 </select>
               </div>
               <button className={styles.closeButton} type="button" onClick={closeResourceForm}>Close</button>
@@ -984,7 +1020,7 @@ export default function DashboardPage() {
                   <input name="title" required defaultValue={editingResource?.title || editingResource?.name || ""} placeholder="e.g. Vikings: Raiders, Traders & Explorers" />
                 </label>
                 <label>
-                  <span>Age</span>
+                  <span>Age range</span>
                   <select name="ageRange" required defaultValue={editingResource?.ageRange || ""}>
                     <option value="" disabled>Select age</option>
                     <option>5-7</option>
@@ -1004,6 +1040,10 @@ export default function DashboardPage() {
                 <label className={styles.pdfUploadField}>
                   <input type="file" accept="application/pdf,.pdf" onChange={handleResourceFile} />
                   <span>{resourceFile ? resourceFile.name : editingResource?.fileName || "Click to upload PDF"}</span>
+                </label>
+                <label className={styles.pdfUploadField}>
+                  <input type="file" accept="image/*" onChange={handleResourceThumbnail} />
+                  <span>{resourceThumbnailFile ? resourceThumbnailFile.name : editingResource?.thumbnailUrl ? "Change PDF preview image" : "Upload PDF preview image"}</span>
                 </label>
               </div>
 

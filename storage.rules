@@ -32,6 +32,14 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    match /resources/previews/{fileName} {
+      allow read: if signedIn();
+      allow create, update: if isAdmin()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isAdmin();
+    }
+
     match /resources/{fileName} {
       allow read: if signedIn();
       allow create, update: if isAdmin()
